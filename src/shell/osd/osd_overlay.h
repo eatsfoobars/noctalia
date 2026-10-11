@@ -50,6 +50,8 @@ struct OsdContent {
   bool showProgress = true;
   bool overLimit = false;
   bool inactive = false;
+  // Optional second line above the value (audio device name). Empty keeps the compact card layout.
+  std::string name;
 };
 
 // Custom OSD as requested by plugins and the osd-show IPC command. No progress hides the bar;
@@ -100,9 +102,13 @@ private:
     wl_surface* wlSurface = nullptr;
 
     Node* card = nullptr;
+    // `row` is the card's outer content container: the icon/progress/value row itself, or on
+    // two-line header cards the vertical stack whose inner row is `contentRow`.
     Flex* row = nullptr;
+    Flex* contentRow = nullptr;
     Box* background = nullptr;
     Glyph* glyph = nullptr;
+    Label* nameLabel = nullptr;
     Label* value = nullptr;
     ProgressBar* progress = nullptr;
     float progressValueMinWidth = 0.0F;
@@ -136,6 +142,7 @@ private:
   std::string m_lastPosition;
   std::string m_lastOrientation;
   bool m_lastShowProgress = true;
+  bool m_lastHasName = false;
   float m_lastLayoutScale = 1.0F;
   float m_lastCornerRadiusScale = 1.0F;
   std::vector<std::string> m_lastMonitorSelectors;

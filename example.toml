@@ -234,6 +234,11 @@ offset_x = 20                       # absolute horizontal margin from the screen
 offset_y = 8                        # absolute vertical margin from the screen edge
 # monitors = ["DP-1"]               # connector names; omit or leave empty for all monitors
 
+[osd.audio]
+# Both keys require [osd.kinds] volume = true.
+all_devices = false                 # volume OSD for any output/input device, not only the default one
+show_device_name = false            # print the changed device name above the volume bar; with all_devices, a non-default device always shows its name
+
 [osd.kinds]
 volume = true                       # master volume OSD toggle
 volume_output = true                # output (speaker) volume; requires volume = true

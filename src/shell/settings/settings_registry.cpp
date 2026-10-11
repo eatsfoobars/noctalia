@@ -2444,6 +2444,20 @@ namespace settings {
       inputEntry.advanced = true;
       inputEntry.visibleWhen = volumeOn;
       entries.push_back(std::move(inputEntry));
+      SettingEntry allDevicesEntry = makeEntry(
+          SettingsSection::Osd, "audio", tr("settings.schema.shell.osd-audio-all-devices.label"),
+          tr("settings.schema.shell.osd-audio-all-devices.description"), {"osd", "audio", "all_devices"},
+          ToggleSetting{cfg.osd.audio.allDevices}, "hud overlay audio volume sink source device speaker microphone"
+      );
+      allDevicesEntry.visibleWhen = volumeOn;
+      entries.push_back(std::move(allDevicesEntry));
+      SettingEntry deviceNameEntry = makeEntry(
+          SettingsSection::Osd, "audio", tr("settings.schema.shell.osd-audio-show-device-name.label"),
+          tr("settings.schema.shell.osd-audio-show-device-name.description"), {"osd", "audio", "show_device_name"},
+          ToggleSetting{cfg.osd.audio.showDeviceName}, "hud overlay audio volume device name label sink source"
+      );
+      deviceNameEntry.visibleWhen = volumeOn;
+      entries.push_back(std::move(deviceNameEntry));
     }
     entries.push_back(makeEntry(
         SettingsSection::Osd, "kinds", tr("settings.schema.shell.osd-kinds-brightness.label"),

@@ -3401,6 +3401,14 @@
           "description": "Block all outgoing network requests",
           "label": "Offline Mode"
         },
+        "osd-audio-all-devices": {
+          "description": "Show the volume OSD when any output or input device changes, not only the default one",
+          "label": "Volume OSD for All Devices"
+        },
+        "osd-audio-show-device-name": {
+          "description": "Show which audio device changed above the volume bar",
+          "label": "Device Name on Volume OSD"
+        },
         "osd-background-opacity": {
           "description": "Background opacity of OSD popups",
           "label": "Background Opacity"

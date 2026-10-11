@@ -622,7 +622,7 @@ void Application::initIpc() {
       }
       volume = *value;
     }
-    m_audioOsd.showOutputValue(volume, sink->muted);
+    m_audioOsd.showOutputValue(volume, sink->muted, audioDeviceLabel(*sink));
     return "ok\n";
   });
   m_ipcService.bind(noctalia::cli::msg::micVolumeOsd, [this](const std::string& args) -> std::string {
@@ -646,7 +646,7 @@ void Application::initIpc() {
       }
       volume = *value;
     }
-    m_audioOsd.showInputValue(volume, source->muted);
+    m_audioOsd.showInputValue(volume, source->muted, audioDeviceLabel(*source));
     return "ok\n";
   });
   m_configService.registerIpc(m_ipcService);

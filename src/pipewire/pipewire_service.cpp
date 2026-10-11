@@ -1129,6 +1129,16 @@ const AudioNode* PipeWireService::defaultSource() const noexcept {
   return nullptr;
 }
 
+const AudioNode* PipeWireService::findSink(std::uint32_t id) const noexcept {
+  auto it = std::ranges::find(m_state.sinks, id, &AudioNode::id);
+  return it == m_state.sinks.end() ? nullptr : &*it;
+}
+
+const AudioNode* PipeWireService::findSource(std::uint32_t id) const noexcept {
+  auto it = std::ranges::find(m_state.sources, id, &AudioNode::id);
+  return it == m_state.sources.end() ? nullptr : &*it;
+}
+
 std::string audioDeviceLabel(const AudioNode& node) { return !node.description.empty() ? node.description : node.name; }
 
 void PipeWireService::onRegistryGlobal(std::uint32_t id, const char* type, std::uint32_t, const spa_dict* props) {
