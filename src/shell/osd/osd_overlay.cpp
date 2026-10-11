@@ -103,7 +103,8 @@ namespace {
   [[nodiscard]] bool isVerticalOrientation(const std::string& orientation) { return orientation == "vertical"; }
 
   [[nodiscard]] std::string effectiveOsdOrientation(const OsdContent& content, const std::string& configOrientation) {
-    if (!content.showProgress) {
+    // Text-only cards and named cards need the full horizontal width; never a vertical gauge.
+    if (!content.showProgress || !content.name.empty()) {
       return "horizontal";
     }
     return configOrientation.empty() ? "horizontal" : configOrientation;
@@ -124,30 +125,43 @@ namespace {
     return (Style::controlHeight * 6 + Style::spaceMd + Style::spaceSm + Style::spaceXs) * s;
   }
 
-  [[nodiscard]] float cardWidth(float s, const std::string& orientation) {
+  // Wider horizontal card: a device name shares the interior width with the icon and value.
+  [[nodiscard]] float namedCardLength(float s) {
+    return (Style::controlHeight * 8 + Style::spaceMd + Style::spaceSm + Style::spaceXs) * s;
+  }
+
+  [[nodiscard]] float cardWidth(float s, const std::string& orientation, bool hasName) {
     if (isVerticalOrientation(orientation)) {
       return (Style::controlHeight + Style::spaceLg + Style::spaceMd) * s;
     }
-    return horizontalCardLength(s);
+    return hasName ? namedCardLength(s) : horizontalCardLength(s);
   }
 
-  [[nodiscard]] float cardHeight(float s, const std::string& orientation, bool showProgress) {
+  [[nodiscard]] float nameFontSize(float s) { return Style::fontSizeBody * s; }
+
+  [[nodiscard]] float nameLineHeight(float s) { return Style::fontSizeTitle * s; }
+
+  [[nodiscard]] float nameGap(float s) { return Style::spaceXs * s; }
+
+  [[nodiscard]] float cardHeight(float s, const std::string& orientation, bool showProgress, bool hasName) {
     if (isVerticalOrientation(orientation)) {
       if (!showProgress) {
         return (Style::controlHeight * 2 + Style::spaceLg + Style::spaceSm) * s;
       }
       return horizontalCardLength(s);
     }
-    return (Style::controlHeight + Style::spaceSm) * s;
+    const float base = (Style::controlHeight + Style::spaceSm) * s;
+    return hasName ? base + nameLineHeight(s) + nameGap(s) : base;
   }
 
-  [[nodiscard]] std::uint32_t osdSurfaceWidth(float s, const std::string& orientation, float innerPadX) {
-    const float w = cardWidth(s, orientation) + innerPadX * 2.0F;
+  [[nodiscard]] std::uint32_t osdSurfaceWidth(float s, const std::string& orientation, bool hasName, float innerPadX) {
+    const float w = cardWidth(s, orientation, hasName) + innerPadX * 2.0F;
     return static_cast<std::uint32_t>(std::max(1, static_cast<int>(std::ceil(w))));
   }
 
-  [[nodiscard]] std::uint32_t osdSurfaceHeight(float s, const std::string& orientation, bool showProgress) {
-    const float h = cardHeight(s, orientation, showProgress) + Style::spaceLg * s;
+  [[nodiscard]] std::uint32_t
+  osdSurfaceHeight(float s, const std::string& orientation, bool showProgress, bool hasName) {
+    const float h = cardHeight(s, orientation, showProgress, hasName) + Style::spaceLg * s;
     return static_cast<std::uint32_t>(std::max(1, static_cast<int>(std::ceil(h))));
   }
 
@@ -413,6 +427,7 @@ void OsdOverlay::ensureSurfaces() {
       ? m_config->config().osd.positionVertical
       : "top_center";
   const bool showProgress = m_content.showProgress;
+  const bool hasName = !m_content.name.empty();
   const std::string orientation = effectiveOsdOrientation(m_content, configOrientation);
   const std::string position = effectiveOsdPosition(orientation, horizontalPosition, verticalPosition);
   const float layoutScale = osdUiScale(m_config);
@@ -431,6 +446,7 @@ void OsdOverlay::ensureSurfaces() {
       && (position != m_lastPosition
           || orientation != m_lastOrientation
           || showProgress != m_lastShowProgress
+          || hasName != m_lastHasName
           || selectedMonitors != m_lastMonitorSelectors)) {
     destroySurfaces();
   }
@@ -446,13 +462,14 @@ void OsdOverlay::ensureSurfaces() {
   const int marginH = (m_config != nullptr) ? std::max(0, m_config->config().osd.offsetX) : 0;
   const float horizontalInnerPad =
       shell::surface_edge_inset::resolve(marginH, Style::spaceMd * layoutScale).innerPadding;
-  const auto surfaceWidth = osdSurfaceWidth(layoutScale, orientation, horizontalInnerPad);
-  const auto surfaceHeight = osdSurfaceHeight(layoutScale, orientation, showProgress);
+  const auto surfaceWidth = osdSurfaceWidth(layoutScale, orientation, hasName, horizontalInnerPad);
+  const auto surfaceHeight = osdSurfaceHeight(layoutScale, orientation, showProgress, hasName);
   const SurfaceMargins margins = surfaceMarginsForPosition(position);
 
   m_lastPosition = position;
   m_lastOrientation = orientation;
   m_lastShowProgress = showProgress;
+  m_lastHasName = hasName;
   m_lastLayoutScale = layoutScale;
   m_lastCornerRadiusScale = Style::cornerRadiusScale();
   m_lastMonitorSelectors = selectedMonitors;
@@ -613,8 +630,8 @@ void OsdOverlay::prepareFrame(Instance& inst, bool needsUpdate, bool needsLayout
     const float corner = Style::cornerRadiusScale();
     if (std::abs(corner - inst.appliedCornerRadiusScale) > 1.0e-4F) {
       const float s = inst.uiLayoutScale;
-      const float cw = cardWidth(s, m_lastOrientation);
-      const float ch = cardHeight(s, m_lastOrientation, m_lastShowProgress);
+      const float cw = cardWidth(s, m_lastOrientation, m_lastHasName);
+      const float ch = cardHeight(s, m_lastOrientation, m_lastShowProgress, m_lastHasName);
       inst.background->setRadius(osdCardRadius(cw, ch, s));
       if (inst.progress != nullptr) {
         inst.progress->setRadius(osdProgressRadius(s));
@@ -644,8 +661,8 @@ void OsdOverlay::buildScene(Instance& inst, std::uint32_t width, std::uint32_t h
   const auto h = static_cast<float>(height);
   const float s = inst.uiLayoutScale;
   const bool vertical = isVerticalOrientation(m_lastOrientation);
-  const float cw = cardWidth(s, m_lastOrientation);
-  const float ch = cardHeight(s, m_lastOrientation, m_lastShowProgress);
+  const float cw = cardWidth(s, m_lastOrientation, m_lastHasName);
+  const float ch = cardHeight(s, m_lastOrientation, m_lastShowProgress, m_lastHasName);
   const float pad = cardPadding(s);
   const float gap = innerGap(s);
 
@@ -697,6 +714,9 @@ void OsdOverlay::buildScene(Instance& inst, std::uint32_t width, std::uint32_t h
       .configure = [](Flex& flex) { flex.setZIndex(1); },
   };
 
+  inst.nameLabel = nullptr;
+  inst.contentRow = nullptr;
+
   auto icon = ui::glyph({
       .out = &inst.glyph,
       .glyphSize = glyphSize(s),
@@ -736,6 +756,45 @@ void OsdOverlay::buildScene(Instance& inst, std::uint32_t width, std::uint32_t h
   std::unique_ptr<Flex> row;
   if (vertical) {
     row = ui::column(rowProps, std::move(icon), std::move(progress), std::move(value));
+  } else if (m_lastHasName) {
+    // Two-line card: the device name is a header line centered above the icon + progress + percent
+    // row. The column's FlexAlign::Stretch is load-bearing - it hands both children an exact
+    // card-interior width (flex.cpp setCrossConstraint + item.cross = innerCross), and an exact
+    // width is what makes the label's wrap budget, and therefore the end-ellipsis on long device
+    // descriptions, engage. A preset width on the label itself would be ignored by Flex (label.h).
+    auto nameLabel = ui::label({
+        .out = &inst.nameLabel,
+        .text = m_content.name,
+        .fontSize = nameFontSize(s),
+        .fontWeight = FontWeight::Bold,
+        .color = colorSpecFromRole(ColorRole::OnSurface),
+        .maxWidth = cw - pad * 2.0F,
+        .maxLines = 1,
+        .textAlign = TextAlign::Center,
+        .ellipsize = TextEllipsize::End,
+        .configure = [](Label& label) { label.setZIndex(1); },
+    });
+    auto contentRow = ui::row(
+        ui::FlexProps{
+            .out = &inst.contentRow,
+            .align = FlexAlign::Center,
+            .gap = gap,
+            .configure = [](Flex& flex) { flex.setZIndex(1); },
+        },
+        std::move(icon), std::move(progress), std::move(value)
+    );
+    row = ui::column(
+        ui::FlexProps{
+            .out = &inst.row,
+            .align = FlexAlign::Stretch,
+            .justify = FlexJustify::Center,
+            .gap = nameGap(s),
+            .width = cw - pad * 2.0F,
+            .height = ch,
+            .configure = [](Flex& flex) { flex.setZIndex(1); },
+        },
+        std::move(nameLabel), std::move(contentRow)
+    );
   } else {
     row = ui::row(rowProps, std::move(icon), std::move(progress), std::move(value));
   }
@@ -761,8 +820,8 @@ void OsdOverlay::updateInstanceContent(Instance& inst) {
   const float s = inst.uiLayoutScale;
   const bool vertical = isVerticalOrientation(m_lastOrientation);
   // Card frame size is animated during reveal; measure layout against intrinsic size.
-  const float cw = cardWidth(s, m_lastOrientation);
-  const float ch = cardHeight(s, m_lastOrientation, m_lastShowProgress);
+  const float cw = cardWidth(s, m_lastOrientation, m_lastHasName);
+  const float ch = cardHeight(s, m_lastOrientation, m_lastShowProgress, m_lastHasName);
   inst.background->setFill(colorSpecFromRole(ColorRole::Surface, osdBackgroundOpacity(m_config)));
   inst.background->setBorder(osdBorderColor(m_config), osdBorderWidth(m_config, s));
 
@@ -774,7 +833,11 @@ void OsdOverlay::updateInstanceContent(Instance& inst) {
   inst.progress->setVisible(m_content.showProgress);
   inst.progress->setFill(colorSpecFromRole(accentRole));
   inst.progress->setOrientation(vertical ? ProgressBarOrientation::Vertical : ProgressBarOrientation::Horizontal);
-  inst.row->setJustify((vertical || !m_content.showProgress) ? FlexJustify::Center : FlexJustify::Start);
+  const FlexJustify contentJustify = (vertical || !m_content.showProgress) ? FlexJustify::Center : FlexJustify::Start;
+  // A two-line card's outer node is a vertical stack that must stay centered; its content justify
+  // belongs to the row holding icon + progress + percent. Unnamed and text OSDs have no such row.
+  Flex* justifyTarget = (inst.contentRow != nullptr) ? inst.contentRow : inst.row;
+  justifyTarget->setJustify(contentJustify);
   inst.value->setFontSize(valueFontSize(s));
   const ColorRole valueRole = m_content.overLimit ? ColorRole::Error
       : m_content.inactive                        ? ColorRole::OnSurfaceVariant
@@ -792,6 +855,17 @@ void OsdOverlay::updateInstanceContent(Instance& inst) {
   );
   inst.value->setMinWidth((!vertical && m_content.showProgress) ? inst.progressValueMinWidth : 0.0F);
   inst.value->setText(m_content.value);
+  // Header cards center the device name across the whole card interior; the exact width comes from
+  // the stretching column, so maxWidth only caps it and long descriptions ellipsize at the end.
+  if (inst.nameLabel != nullptr) {
+    inst.nameLabel->setFontSize(nameFontSize(s));
+    inst.nameLabel->setFontWeight(FontWeight::Bold);
+    inst.nameLabel->setColor(colorSpecFromRole(ColorRole::OnSurface));
+    inst.nameLabel->setTextAlign(TextAlign::Center);
+    inst.nameLabel->setMaxWidth(std::max(0.0F, cw - cardPadding(s) * 2.0F));
+    inst.nameLabel->setVisible(!m_content.name.empty());
+    inst.nameLabel->setText(m_content.name);
+  }
   inst.progress->setRadius(osdProgressRadius(s));
   inst.progress->setProgress(m_content.progress);
   Renderer& renderer = inst.surface->renderTarget().renderer();
@@ -826,8 +900,8 @@ void OsdOverlay::applyReveal(Instance& inst, float reveal) {
   }
 
   const float s = inst.uiLayoutScale;
-  const float cw = cardWidth(s, m_lastOrientation);
-  const float ch = cardHeight(s, m_lastOrientation, m_lastShowProgress);
+  const float cw = cardWidth(s, m_lastOrientation, m_lastHasName);
+  const float ch = cardHeight(s, m_lastOrientation, m_lastShowProgress, m_lastHasName);
   const float baseX = cardBaseX(inst.sceneRoot->width(), cw);
   const float baseY = cardBaseYForPosition(m_lastPosition, inst.sceneRoot->height(), ch);
   const float r = std::clamp(reveal, 0.0F, 1.0F);

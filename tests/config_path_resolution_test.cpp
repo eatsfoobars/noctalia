@@ -63,6 +63,8 @@ int main() {
   expectKnown({"desktop_widgets", "widget", "clock1", "type"});
   expectKnown({"desktop_widgets", "widget", "clock1", "settings", "format"});
   expectKnown({"osd", "scale"});
+  expectKnown({"osd", "audio", "all_devices"});
+  expectKnown({"osd", "audio", "show_device_name"});
   expectKnown({"notification", "width"});
   expectKnown({"notification", "background_opacity"});
   expectKnown({"battery", "warning_threshold"});

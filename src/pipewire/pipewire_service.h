@@ -111,6 +111,9 @@ public:
   [[nodiscard]] const PrivacyState& privacyState() const noexcept { return m_privacyState; }
   [[nodiscard]] const AudioNode* defaultSink() const noexcept;
   [[nodiscard]] const AudioNode* defaultSource() const noexcept;
+  // Lookup by PipeWire node id; nullptr when the node is not in the current state.
+  [[nodiscard]] const AudioNode* findSink(std::uint32_t id) const noexcept;
+  [[nodiscard]] const AudioNode* findSource(std::uint32_t id) const noexcept;
 
   // Control
   void setSinkVolume(std::uint32_t id, float volume);

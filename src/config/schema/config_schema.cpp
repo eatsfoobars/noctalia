@@ -51,6 +51,14 @@ namespace noctalia::config::schema {
     return s;
   }
 
+  const Schema<OsdAudioConfig>& osdAudioSchema() {
+    static const Schema<OsdAudioConfig> s = {
+        field(&OsdAudioConfig::allDevices, "all_devices"),
+        field(&OsdAudioConfig::showDeviceName, "show_device_name"),
+    };
+    return s;
+  }
+
   const Schema<OsdKindsConfig>& osdKindsSchema() {
     static const Schema<OsdKindsConfig> s = {
         field(&OsdKindsConfig::volume, "volume"),
@@ -112,6 +120,7 @@ namespace noctalia::config::schema {
         field(&OsdConfig::offsetX, "offset_x", Range<std::int64_t>{0, std::nullopt}),
         field(&OsdConfig::offsetY, "offset_y", Range<std::int64_t>{0, std::nullopt}),
         field(&OsdConfig::monitors, "monitors"),
+        subTable(&OsdConfig::audio, "audio", osdAudioSchema()),
         subTable(&OsdConfig::kinds, "kinds", osdKindsSchema()),
     };
     return s;

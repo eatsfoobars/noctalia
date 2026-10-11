@@ -769,6 +769,11 @@ void Application::initNotificationAndOsd() {
   );
   m_configService.addReloadCallback([this]() { m_windowSwitcher.onConfigReload(); });
   m_configService.addReloadCallback([this]() { m_osdOverlay.onConfigReload(); });
+  m_configService.addReloadCallback([this]() {
+    m_audioOsd.setDeviceOsdOptions(
+        m_configService.config().osd.audio.allDevices, m_configService.config().osd.audio.showDeviceName
+    );
+  });
   m_idleGraceOverlay.initialize(m_wayland, &m_renderContext);
   m_wayland.setIdleCapabilitiesReadyCallback([this]() { m_idleManager.reload(m_configService.config().idle); });
   m_idleManager.initialize(
@@ -835,6 +840,9 @@ void Application::initNotificationAndOsd() {
       "idle"
   );
   m_audioOsd.bindOverlay(m_osdOverlay);
+  m_audioOsd.setDeviceOsdOptions(
+      m_configService.config().osd.audio.allDevices, m_configService.config().osd.audio.showDeviceName
+  );
   m_audioOsd.setSoundPlayer(m_soundPlayer.get());
   m_screenshotService.setSoundPlayer(m_soundPlayer.get());
   if (m_pipewireService != nullptr) {
@@ -1140,10 +1148,12 @@ void Application::initWidgetControllersAndCallbacks() {
       }
     });
     m_pipewireService->setVolumePreviewCallback([this](bool isInput, std::uint32_t id, float volume, bool muted) {
+      const AudioNode* node = isInput ? m_pipewireService->findSource(id) : m_pipewireService->findSink(id);
+      const std::string name = node != nullptr ? audioDeviceLabel(*node) : std::string{};
       if (isInput) {
-        m_audioOsd.showInput(id, volume, muted);
+        m_audioOsd.showInput(id, volume, muted, /*playFeedback=*/true, name);
       } else {
-        m_audioOsd.showOutput(id, volume, muted);
+        m_audioOsd.showOutput(id, volume, muted, /*playFeedback=*/true, name);
       }
     });
   }

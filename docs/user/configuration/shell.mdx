@@ -403,6 +403,11 @@ offset_x = 20            # absolute horizontal margin from the screen edge
 offset_y = 8             # absolute vertical margin from the screen edge
 # monitors = ["DP-1"]    # connector names; omit or leave empty for all monitors
 
+[osd.audio]
+# Both keys require [osd.kinds] volume = true.
+all_devices = false      # volume OSD for any output/input device, not only the default one
+show_device_name = false # print the changed device name above the volume bar
+
 [osd.kinds]
 volume = true            # master volume OSD toggle
 volume_output = true     # output (speaker) volume; requires volume = true
@@ -438,6 +443,13 @@ takes precedence over `monitors`. `background_opacity` sets popup background opa
 `true`; set `false` for a borderless look), `border_color` sets its color (theme color role or hex, default `outline`),
 `border_width` sets its width in logical pixels (0 to 6, default `1`), and `offset_x` / `offset_y` are the
 absolute margins from the screen edge for the chosen `position`.
+Per-device behaviour lives under `[osd.audio]`; both keys require `[osd.kinds] volume = true`. `all_devices = true`
+raises the volume OSD when any output or input device changes volume or mute, not only the default one; the listed
+devices are the same ones the sound settings show (application/program streams are excluded) and unavailable devices
+never trigger a popup, except the current default, which keeps raising its OSD even when its active route reports
+itself unavailable. `show_device_name = true` prints the changed device name on a second line above the volume bar.
+When `all_devices` is on, a popup raised for a non-default device always carries its name, because a bar without it
+would be ambiguous. Named cards are wider than the plain volume card and always use the horizontal layout.
 Each popup kind can be toggled independently under `[osd.kinds]`. The volume master toggle enables both output and input
 OSDs by default; set `volume_output` or `volume_input` to `false` to disable one side only. `media = false` disables
 MPRIS playback, track-change, and player-volume popups, and `keyboard_backlight = false` disables keyboard-backlight

@@ -808,6 +808,12 @@ struct OsdKindsConfig {
   bool operator==(const OsdKindsConfig&) const = default;
 };
 
+struct OsdAudioConfig {
+  bool allDevices = false;     // volume OSD for any device, not just the default
+  bool showDeviceName = false; // print the device name on the volume OSD
+  bool operator==(const OsdAudioConfig&) const = default;
+};
+
 struct OsdConfig {
   bool enabled = true; // master gate for all OSD popups
   std::string position = "top_center";
@@ -823,6 +829,7 @@ struct OsdConfig {
   int offsetX = 20;
   int offsetY = 8;
   std::vector<std::string> monitors;
+  OsdAudioConfig audio;
   OsdKindsConfig kinds;
 
   bool operator==(const OsdConfig&) const = default;
