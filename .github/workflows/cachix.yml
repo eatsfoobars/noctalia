@@ -3,13 +3,13 @@ name: cachix
 on:
   push:
     branches:
-      - main
+      - noctalia-audio-osd
   workflow_run:
     workflows: ["update flake"]
     types:
       - completed
     branches:
-      - main
+      - noctalia-audio-osd
   workflow_dispatch:
 
 jobs:
@@ -18,7 +18,7 @@ jobs:
       matrix:
         runner: [ubuntu-latest, ubuntu-24.04-arm]
     runs-on: ${{ matrix.runner }}
-    if: ${{ github.repository == 'noctalia-dev/noctalia' }}
+    if: ${{ github.repository == 'eatsfoobars/noctalia' }}
     steps:
       - uses: actions/checkout@v6
       - uses: cachix/install-nix-action@v31
@@ -39,7 +39,7 @@ jobs:
           fetch-depth: 0
       - name: push to cachix branch
         run: |
-          git fetch origin main origin/cachix 2>/dev/null || true
-          git merge-base --is-ancestor "${{ github.sha }}" origin/main || exit 0
+          git fetch origin noctalia-audio-osd origin/cachix 2>/dev/null || true
+          git merge-base --is-ancestor "${{ github.sha }}" origin/noctalia-audio-osd || exit 0
           git merge-base --is-ancestor "${{ github.sha }}" origin/cachix 2>/dev/null && exit 0
           git push origin "${{ github.sha }}":refs/heads/cachix --force
