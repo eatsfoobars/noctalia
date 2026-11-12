@@ -924,6 +924,7 @@ void PipeWireService::disconnectRemote(bool notifyState) {
   m_devices.clear();
   m_links.clear();
   m_metadataTargetObjects.clear();
+  m_sinkLoopbackOutputs.clear();
 
   for (auto& cleanup : m_metadataCleanups) {
     cleanup();
@@ -1887,6 +1888,46 @@ void PipeWireService::rebuildState() {
     return addCapture(PrivacyCaptureKind::Microphone, node->id, privacyAppName(*node));
   };
 
+  m_sinkLoopbackOutputs.clear();
+  std::unordered_map<std::string_view, const NodeData*> loopbackOutputs;
+  for (const auto& [id, nd] : m_nodes) {
+    if (nd->mediaClass == "Stream/Output/Audio" && !nd->linkGroup.empty()) {
+      loopbackOutputs[nd->linkGroup] = nd.get();
+    }
+  }
+
+  for (const auto& [id, ndIn] : m_nodes) {
+    if (ndIn->mediaClass != "Stream/Input/Audio" || ndIn->linkGroup.empty()) {
+      continue;
+    }
+    const auto outIt = loopbackOutputs.find(ndIn->linkGroup);
+    if (outIt == loopbackOutputs.end()) {
+      continue;
+    }
+    std::uint32_t sinkId = 0;
+    if (!ndIn->targetObject.empty()) {
+      std::string_view target = ndIn->targetObject;
+      if (target.ends_with(".monitor")) {
+        target.remove_suffix(8);
+      }
+      sinkId = resolveTargetObjectSink(std::string(target));
+    }
+    if (sinkId == 0) {
+      for (const LinkData& link : std::views::values(m_links)) {
+        if (link.inputNodeId == ndIn->id) {
+          if (const NodeData* srcNode = findNode(link.outputNodeId);
+              srcNode != nullptr && srcNode->mediaClass == "Audio/Sink") {
+            sinkId = srcNode->id;
+            break;
+          }
+        }
+      }
+    }
+    if (sinkId != 0) {
+      m_sinkLoopbackOutputs[sinkId] = outIt->second->id;
+    }
+  }
+
   for (const auto& [id, nd] : m_nodes) {
     AudioNode node;
     node.id = id;
@@ -1922,6 +1963,12 @@ void PipeWireService::rebuildState() {
       node.isDefault = (nd->name == m_defaultSinkName);
       if (node.isDefault) {
         next.defaultSinkId = id;
+      }
+      if (const auto loopIt = m_sinkLoopbackOutputs.find(id); loopIt != m_sinkLoopbackOutputs.end()) {
+        if (const NodeData* loopOut = findNode(loopIt->second); loopOut != nullptr) {
+          node.volume = loopOut->volume;
+          node.muted = node.muted || loopOut->muted;
+        }
       }
       next.sinks.push_back(std::move(node));
     } else if (nd->mediaClass == "Audio/Source") {
@@ -2277,11 +2324,19 @@ void PipeWireService::setNodeMuted(std::uint32_t id, bool muted) {
 
 void PipeWireService::setSinkVolume(std::uint32_t id, float volume) {
   setNodeVolume(id, volume);
+  if (const auto it = m_sinkLoopbackOutputs.find(id); it != m_sinkLoopbackOutputs.end()) {
+    setNodeVolume(it->second, volume);
+  }
   if (id == m_state.defaultSinkId && m_state.defaultSinkId != 0) {
     emitVolumePreview(false, id, volume);
   }
 }
-void PipeWireService::setSinkMuted(std::uint32_t id, bool muted) { setNodeMuted(id, muted); }
+void PipeWireService::setSinkMuted(std::uint32_t id, bool muted) {
+  setNodeMuted(id, muted);
+  if (const auto it = m_sinkLoopbackOutputs.find(id); it != m_sinkLoopbackOutputs.end()) {
+    setNodeMuted(it->second, muted);
+  }
+}
 void PipeWireService::setDefaultSink(std::uint32_t id) { setDefaultNode(id, "default.audio.sink"); }
 void PipeWireService::setSourceVolume(std::uint32_t id, float volume) {
   setNodeVolume(id, volume);

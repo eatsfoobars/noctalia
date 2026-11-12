@@ -309,6 +309,9 @@ private:
   // while NodeData::targetObject is the node's own creation-time target property.
   std::unordered_map<std::uint32_t, std::string> m_metadataTargetObjects;
   std::vector<std::function<void()>> m_metadataCleanups;
+  // Maps a virtual sink node id to the loopback playback stream (Stream/Output/Audio) forwarding its
+  // audio, if any. Linux-Arctis-Manager applies ChatMix attenuation to the loopback instead of the sink.
+  std::unordered_map<std::uint32_t, std::uint32_t> m_sinkLoopbackOutputs;
   std::string m_defaultSinkName;
   std::string m_defaultSourceName;
   AudioState m_state;
